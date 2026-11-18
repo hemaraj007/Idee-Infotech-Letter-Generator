@@ -1,4 +1,4 @@
-
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -40,6 +40,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .bd td:first-child{background:#eef2fb;width:34%;font-weight:600}
 .sig{margin-top:34px}
 .ft{background:#0f2a6b;color:#fff;padding:14px 44px;font-size:12px;display:flex;justify-content:space-between;gap:14px;border-top:4px solid #1d4ed8}
+@media print{@page{size:A4;margin:0}.wrap>.panel{display:none}.wrap{display:block;padding:0}.paper{box-shadow:none}}
 </style>
 </head>
 <body>
@@ -75,10 +76,10 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <label>Company address (footer)</label><input id="caddr" value="Salem, Tamil Nadu">
 <div class="row"><div><label>Signatory name</label><input id="sname"></div><div><label>Designation</label><input id="sdes" value="Authorised Signatory"></div></div>
 <div class="btns">
-<button class="p" id="go">Submit &amp; Generate</button>
-<button class="s" id="pdf" disabled>Download PDF</button>
+<button class="p" id="go">Submit &amp; Download PDF</button>
+<button class="s" id="pdf" disabled>Download again</button>
 </div>
-<div class="note" id="msg">Fill the details and press Submit to see the letter.</div>
+<div class="note" id="msg">Fill the details and press Submit. The letter PDF downloads automatically.</div>
 </div>
 <div class="pv"><div class="paper" id="paper"></div></div>
 </div>
@@ -115,16 +116,17 @@ document.querySelectorAll('.tab').forEach(function(b){b.onclick=function(){
 document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')});b.classList.add('on');
 type=b.dataset.t;['call','conf','join'].forEach(function(k){$('f-'+k).style.display=k===type?'':'none'});
 R=ref();render();$('pdf').disabled=false}});
-$('go').onclick=async function(){R=ref();render();$('pdf').disabled=false;var ok=await saveRec();$('msg').textContent=ok?'Letter generated and details saved. Now download the PDF.':'Letter generated, but could not be saved to Records (sign in to claude.ai to enable saving).'};
-$('pdf').onclick=async function(){
+$('go').onclick=async function(){R=ref();render();$('pdf').disabled=false;await saveRec();await dlPdf()};
+async function dlPdf(){
 var fn=(['Call-Letter','Confirmation-Letter','Joining-Letter'][['call','conf','join'].indexOf(type)])+'-'+($('name').value.trim().replace(/\s+/g,'-')||'Candidate')+'.pdf';
 $('msg').textContent='Preparing PDF…';
 try{
 var blob=await html2pdf().set({margin:0,image:{type:'jpeg',quality:.97},html2canvas:{scale:2,useCORS:true},jsPDF:{unit:'px',format:[794,1122],orientation:'portrait',hotfixes:['px_scaling']}}).from($('paper')).outputPdf('blob');
 var dl=null;try{dl=await claude.use('downloads')}catch(e){}
 if(dl){await dl.save({filename:fn,data:blob});$('msg').textContent='PDF ready.'}
-else{$('msg').textContent='Download is not available here. Opening print dialog – choose "Save as PDF".';window.print()}
-}catch(e){$('msg').textContent=(e&&e.code==='declined')?'Download cancelled.':'Could not create the PDF. Try again.'}};
+else{var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fn;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(a.href)},3000);$('msg').textContent='PDF downloaded.'}
+}catch(e){$('msg').textContent=(e&&e.code==='declined')?'Download cancelled.':'Could not create the PDF. Try again.'}}
+$('pdf').onclick=dlPdf;
 var DB=null,ROWS=[];
 if(window.claude&&claude.use){claude.use('db').then(function(d){DB=d;}).catch(function(){})}
 function getRec(){
